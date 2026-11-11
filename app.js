@@ -155,12 +155,15 @@ function renderGrammarTags() {
 
 function renderDirectory() {
   const filteredQuestions = allQuestions.filter(q => q.type === currentDirType && q.year);
-  const yearMap = {};
+  
+  // 直接按年份去重收集
+  const yearSet = new Set();
   filteredQuestions.forEach(q => {
-    if (!yearMap[q.year]) yearMap[q.year] = new Set();
-    if (q.month) yearMap[q.year].add(q.month);
+    if (q.year) yearSet.add(q.year);
   });
-  const years = Object.keys(yearMap).sort((a, b) => b - a);
+  
+  // 按年份倒序排列（最新的一年排在最上面）
+  const years = Array.from(yearSet).sort((a, b) => b - a);
 
   if (years.length === 0) {
     els.directoryList.innerHTML = `<div class="card" style="text-align:center; color:#64748b;">当前题型下暂无带有“年份”标签的题目。</div>`;
@@ -169,18 +172,11 @@ function renderDirectory() {
 
   let html = "";
   years.forEach(year => {
-    const months = Array.from(yearMap[year]).sort(); 
     html += `<div class="year-group">
                <h3 class="year-title">${year}年</h3>
-               <div class="month-grid">`;
-    if (months.length === 0) {
-      html += `<button class="month-btn" style="grid-column: span 2;" onclick="startQuiz('date', '${year}|', '${currentDirType}')">进入练习</button>`;
-    } else {
-      months.forEach(month => {
-        html += `<button class="month-btn" onclick="startQuiz('date', '${year}|${month}', '${currentDirType}')">${month}</button>`;
-      });
-    }
-    html += `  </div>
+               <div style="margin-bottom: 20px;">
+                 <button class="month-btn" style="width: 100%; padding: 20px 0;" onclick="startQuiz('date', '${year}|', '${currentDirType}')">进入练习</button>
+               </div>
              </div>`;
   });
   els.directoryList.innerHTML = html;
