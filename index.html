@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>学位英语刷题</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    
+    <!-- ================= 首页视图 ================= -->
+    <section id="homeView" class="view">
+      <header class="topbar">
+        <h1>学位英语刷题</h1>
+        <p>自己用 · 专属题库</p>
+      </header>
+
+      <div class="card">
+        <h3 class="card-title">真题练习</h3>
+        <div class="grid-actions">
+          <button id="startFullBtn" class="action-btn primary-light">
+            <span class="icon">📚</span>
+            <span class="text">整套练习</span>
+          </button>
+          <button id="startDailyBtn" class="action-btn warning-light">
+            <span class="icon">🔥</span>
+            <span class="text">每日拆题</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">专项练习</h3>
+        <div class="grid-actions" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <button class="action-btn" onclick="startQuiz('type', '词汇语法')">
+            <span class="icon" style="background:#e0f2fe; color:#0369a1; border-radius:50%; width:36px; height:36px; line-height:36px; font-size:16px;">V</span>
+            <span class="text" style="font-size:14px;">词汇语法</span>
+          </button>
+          <button class="action-btn" onclick="startQuiz('type', '阅读理解')">
+            <span class="icon" style="background:#fce7f3; color:#be185d; border-radius:50%; width:36px; height:36px; line-height:36px; font-size:16px;">📖</span>
+            <span class="text" style="font-size:14px;">阅读理解</span>
+          </button>
+          <button class="action-btn" onclick="startQuiz('type', '挑错')">
+            <span class="icon" style="background:#fef3c7; color:#b45309; border-radius:50%; width:36px; height:36px; line-height:36px; font-size:16px;">🔍</span>
+            <span class="text" style="font-size:14px;">挑错</span>
+          </button>
+          <button class="action-btn" onclick="startQuiz('type', '完形填空')">
+            <span class="icon" style="background:#dcfce7; color:#15803d; border-radius:50%; width:36px; height:36px; line-height:36px; font-size:16px;">📝</span>
+            <span class="text" style="font-size:14px;">完形填空</span>
+          </button>
+          <button class="action-btn" onclick="startQuiz('type', '翻译')">
+            <span class="icon" style="background:#ede9fe; color:#6d28d9; border-radius:50%; width:36px; height:36px; line-height:36px; font-size:16px;">🔤</span>
+            <span class="text" style="font-size:14px;">翻译</span>
+          </button>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3 class="card-title">语法专项 (细化)</h3>
+        <div class="tags-container" id="grammarTags">
+          <span style="color:#64748b; font-size:14px;">题库暂无标签数据</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 真题目录视图 ================= -->
+    <section id="directoryView" class="view hidden">
+      <header class="topbar" style="display: flex; align-items: center; gap: 16px;">
+        <button id="backFromDirBtn" class="ghost small" type="button" style="padding: 8px;">✕</button>
+        <h2 style="margin:0; font-size: 20px;">真题专项练习</h2>
+      </header>
+      
+      <div class="type-tabs" id="dirTypeTabs">
+        <button class="type-tab active" data-type="词汇语法">词汇语法</button>
+        <button class="type-tab" data-type="阅读理解">阅读理解</button>
+        <button class="type-tab" data-type="挑错">挑错</button>
+        <button class="type-tab" data-type="完形填空">完形填空</button>
+        <button class="type-tab" data-type="翻译">翻译</button>
+      </div>
+
+      <div id="directoryList" style="margin-top: 16px;">
+      </div>
+    </section>
+
+    <!-- ================= 刷题视图 ================= -->
+    <section id="quizView" class="view hidden">
+      <div class="quiz-head">
+        <button id="backHomeBtn" class="ghost small" type="button">✕ 退出</button>
+        <span id="progressText" class="progress"></span>
+        <div style="display: flex; gap: 8px;">
+          <button id="nextPassageBtn" class="ghost small hidden" type="button" style="color: var(--primary); border-color: var(--primary);">下一篇 ⏭</button>
+          <button id="openCardBtn" class="secondary small" type="button">答题卡</button>
+        </div>
+      </div>
+      <div id="questionText" class="question"></div>
+      <div id="optionsBox" class="options"></div>
+      <div id="feedbackBox" class="feedback hidden"></div>
+      
+      <div class="quiz-actions" style="justify-content: space-between;">
+        <button id="prevBtn" class="ghost" type="button">上一题</button>
+        <button id="nextBtn" class="primary" type="button">下一题</button>
+      </div>
+    </section>
+
+    <!-- ================= 我的视图 ================= -->
+    <section id="profileView" class="view hidden">
+      <header class="topbar profile-header">
+        <div class="avatar">👨‍🎓</div>
+        <div class="user-info">
+          <h2>备考同学</h2>
+          <p>坚持就是胜利</p>
+        </div>
+      </header>
+
+      <div class="stats-grid card">
+        <div class="stat-item"><div class="stat-value" id="statSessions">0</div><div class="stat-label">答题次数</div></div>
+        <div class="stat-item"><div class="stat-value" id="statAccuracy">0%</div><div class="stat-label">正确率</div></div>
+        <div class="stat-item"><div class="stat-value" id="statTotal">0</div><div class="stat-label">总答题数</div></div>
+        <div class="stat-item"><div class="stat-value text-red" id="statWrong">0</div><div class="stat-label">错题数</div></div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">学习记录</h3>
+        <div class="grid-actions">
+          <button id="profileWrongBtn" class="action-btn">
+            <span class="icon icon-red">📕</span><span class="text">错题本</span>
+          </button>
+          <button id="historyBtn" class="action-btn">
+            <span class="icon icon-blue">📝</span><span class="text">答题记录</span>
+          </button>
+          <button id="vocabBtn" class="action-btn">
+            <span class="icon icon-green">📖</span><span class="text">单词本</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= 答题卡弹窗 ================= -->
+  <div id="cardModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>答题卡</h3>
+        <button id="closeCardBtn" class="close-btn">×</button>
+      </div>
+      <div id="cardGrid" class="card-grid"></div>
+      <div class="modal-footer">
+        <button id="submitQuizBtn" class="primary" style="width: 100%;">交卷并退出</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="tab-bar">
+    <button id="tabHome" class="tab-item active">
+      <span class="tab-icon">🏠</span><span class="tab-text">首页</span>
+    </button>
+    <button id="tabProfile" class="tab-item">
+      <span class="tab-icon">👤</span><span class="tab-text">我的</span>
+    </button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>
