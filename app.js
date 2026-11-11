@@ -13,6 +13,7 @@ let answersRecord = {};
 let currentDirType = "词汇语法";
 let isPassageExpanded = false; 
 let currentPassage = ""; 
+let currentMockScore = 0;
 
 const els = {
   homeView: document.getElementById("homeView"),
@@ -21,6 +22,7 @@ const els = {
   profileView: document.getElementById("profileView"),
   tabHome: document.getElementById("tabHome"),
   tabProfile: document.getElementById("tabProfile"),
+  startMockBtn: document.getElementById("startMockBtn"),
   startFullBtn: document.getElementById("startFullBtn"),
   startDailyBtn: document.getElementById("startDailyBtn"),
   grammarTags: document.getElementById("grammarTags"),
@@ -28,6 +30,7 @@ const els = {
   backFromDirBtn: document.getElementById("backFromDirBtn"),
   dirTypeTabs: document.getElementById("dirTypeTabs"),
   progressText: document.getElementById("progressText"),
+  mockScoreText: document.getElementById("mockScoreText"),
   questionText: document.getElementById("questionText"),
   optionsBox: document.getElementById("optionsBox"),
   feedbackBox: document.getElementById("feedbackBox"),
@@ -105,12 +108,13 @@ async function loadQuestions() {
     allQuestions = data.filter(q => q.id && q.question).map(q => ({
       ...q,
       id: String(q.id),
-      answer: typeof q.answer === 'number' ? Number(q.answer) : q.answer // 兼容选择题和翻译题
+      answer: typeof q.answer === 'number' ? Number(q.answer) : q.answer
     }));
 
     renderGrammarTags();
     els.startFullBtn.disabled = allQuestions.length === 0;
     els.startDailyBtn.disabled = allQuestions.length === 0;
+    els.startMockBtn.disabled = allQuestions.length === 0;
   } catch (err) {
     console.error(err);
     alert("题库加载失败，请检查 questions.json 格式");
@@ -118,7 +122,6 @@ async function loadQuestions() {
 }
 
 function renderGrammarTags() {
-  // 按题型对标签进行分组
   const tagMap = {};
   allQuestions.forEach(q => {
     if (q.grammar && q.type) {
@@ -131,9 +134,7 @@ function renderGrammarTags() {
   
   els.grammarTags.innerHTML = "";
   
-  // 遍历每一个题型
   for (const type in tagMap) {
-    // 添加题型标题
     const title = document.createElement("div");
     title.style.width = "100%";
     title.style.fontSize = "14px";
@@ -142,7 +143,6 @@ function renderGrammarTags() {
     title.textContent = `【${type}】`;
     els.grammarTags.appendChild(title);
 
-    // 添加该题型下的标签
     tagMap[type].forEach(tag => {
       const span = document.createElement("span");
       span.className = "tag";
@@ -155,14 +155,8 @@ function renderGrammarTags() {
 
 function renderDirectory() {
   const filteredQuestions = allQuestions.filter(q => q.type === currentDirType && q.year);
-  
-  // 直接按年份去重收集
   const yearSet = new Set();
-  filteredQuestions.forEach(q => {
-    if (q.year) yearSet.add(q.year);
-  });
-  
-  // 按年份倒序排列（最新的一年排在最上面）
+  filteredQuestions.forEach(q => { if (q.year) yearSet.add(q.year); });
   const years = Array.from(yearSet).sort((a, b) => b - a);
 
   if (years.length === 0) {
@@ -199,6 +193,15 @@ function updateProfileUI() {
   els.statAccuracy.textContent = `${accuracy}%`;
 }
 
+function updateMockScoreUI() {
+  if (currentMode === "mock") {
+    els.mockScoreText.style.display = "block";
+    els.mockScoreText.textContent = `当前得分：${currentMockScore} 分`;
+  } else {
+    els.mockScoreText.style.display = "none";
+  }
+}
+
 function startQuiz(mode, filterValue = null, extraValue = null) {
   currentMode = mode;
   stats.sessions++;
@@ -217,9 +220,7 @@ function startQuiz(mode, filterValue = null, extraValue = null) {
   } else if (mode === "date") {
     const [selYear, selMonth] = filterValue.split("|");
     quizQuestions = allQuestions.filter(q => 
-      String(q.year) === selYear && 
-      (!selMonth || q.month === selMonth) && 
-      (!extraValue || q.type === extraValue)
+      String(q.year) === selYear && (!selMonth || q.month === selMonth) && (!extraValue || q.type === extraValue)
     );
   }
 
@@ -232,6 +233,70 @@ function startQuiz(mode, filterValue = null, extraValue = null) {
   answersRecord = {}; 
   currentPassage = ""; 
   isPassageExpanded = false;
+  currentMockScore = 0;
+  updateMockScoreUI();
+  switchTab('quiz');
+  renderQuestion();
+}
+
+// 全真模拟组卷
+function startMockExam() {
+  const years = [...new Set(allQuestions.map(q => q.year))].filter(Boolean).sort((a, b) => b - a);
+  if (years.length === 0) return alert("暂无年份数据");
+
+  const selectedYear = prompt(`请选择要生成模拟卷的年份（${years.join(' 或 ')}）`, years[0]);
+  if (!years.includes(selectedYear)) return alert("无效的年份");
+
+  const yearQs = allQuestions.filter(q => String(q.year) === String(selectedYear));
+  if (yearQs.length === 0) return alert("该年份暂无题目");
+
+  let mockQs = [];
+  
+  // 1. 词汇语法 30道 * 1分
+  yearQs.filter(q => q.type === "词汇语法").sort(()=>0.5-Math.random()).slice(0, 30).forEach(q => mockQs.push({...q, score: 1}));
+
+  // 2. 挑错 10道 * 1分
+  yearQs.filter(q => q.type === "挑错").sort(()=>0.5-Math.random()).slice(0, 10).forEach(q => mockQs.push({...q, score: 1}));
+
+  // 3. 完形填空 (随机1篇，最多20空) * 0.5分
+  const clozeTitles = [...new Set(yearQs.filter(q => q.type === "完形填空" && q.title).map(q => q.title))];
+  if (clozeTitles.length > 0) {
+      const selTitle = clozeTitles[Math.floor(Math.random() * clozeTitles.length)];
+      yearQs.filter(q => q.title === selTitle).slice(0, 20).forEach(q => mockQs.push({...q, score: 0.5}));
+  }
+
+  // 4. 阅读理解 (随机3篇) * 每题2分
+  const readTitles = [...new Set(yearQs.filter(q => q.type === "阅读理解" && q.title).map(q => q.title))].sort(()=>0.5-Math.random()).slice(0, 3);
+  readTitles.forEach(title => {
+      yearQs.filter(q => q.title === title).forEach(q => mockQs.push({...q, score: 2}));
+  });
+
+  // 5. 翻译 (英5, 汉5) * 2分
+  const transQs = yearQs.filter(q => q.type === "翻译");
+  transQs.filter(q => !/[\u4e00-\u9fa5]/.test(q.question)).sort(()=>0.5-Math.random()).slice(0, 5).forEach(q => mockQs.push({...q, score: 2}));
+  transQs.filter(q => /[\u4e00-\u9fa5]/.test(q.question)).sort(()=>0.5-Math.random()).slice(0, 5).forEach(q => mockQs.push({...q, score: 2}));
+
+  // 按题型顺序排序
+  const typeOrder = { "词汇语法": 1, "挑错": 2, "完形填空": 3, "阅读理解": 4, "翻译": 5 };
+  mockQs.sort((a,b) => {
+      if(typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[a.type] - typeOrder[b.type];
+      if(a.title && b.title && a.title !== b.title) return a.title.localeCompare(b.title);
+      return 0;
+  });
+
+  if (mockQs.length === 0) return alert("该年份题目不足以生成试卷");
+
+  quizQuestions = mockQs;
+  currentIndex = 0;
+  answersRecord = {};
+  currentPassage = "";
+  isPassageExpanded = false;
+  currentMode = "mock";
+  currentMockScore = 0;
+  
+  stats.sessions++;
+  saveStats();
+  updateMockScoreUI();
   switchTab('quiz');
   renderQuestion();
 }
@@ -253,10 +318,10 @@ window.jumpToQuestion = function(idx) {
 }
 
 function renderQuestion() {
+  updateMockScoreUI();
   const q = quizQuestions[currentIndex];
   const record = answersRecord[currentIndex];
 
-  // --- 动态计算进度和“下一篇”按钮 ---
   const isPassageGroup = q.title && (q.type === "完形填空" || q.type === "阅读理解");
 
   if (isPassageGroup) {
@@ -284,15 +349,18 @@ function renderQuestion() {
     els.nextPassageBtn.classList.add("hidden");
   }
 
-   let tagHtml = "";
-  // 翻译题：顶部只保留年份，不显示题型和长解析
+  let tagHtml = "";
   if (q.type === "翻译") {
     if (q.year) tagHtml += `${q.year}年`;
   } else {
-    // 其他题型保持不变
     if (q.type) tagHtml += `【${q.type}】`;
-        if (q.grammar && q.type !== "阅读理解" && q.type !== "完形填空") tagHtml += `[${q.grammar}] `;
+    if (q.grammar && q.type !== "阅读理解" && q.type !== "完形填空") tagHtml += `[${q.grammar}] `;
     if (q.year) tagHtml += `${q.year}年 `;
+  }
+  
+  // 如果是全真模拟，在标签里加上分值
+  if (currentMode === "mock" && q.score) {
+    tagHtml += `<span style="color:#ef4444; font-weight:bold; margin-left:8px;">(${q.score}分)</span>`;
   }
 
   let contentHtml = "";
@@ -331,7 +399,6 @@ function renderQuestion() {
       `;
     }
 
-        // 仅限阅读理解显示下方题号栏，完形填空原文已有数字
     if (q.type === "阅读理解") {
       const groupQuestions = allQuestions.filter(item => item.title === q.title);
       if (groupQuestions.length > 0) {
@@ -354,10 +421,9 @@ function renderQuestion() {
     }
 
     let prefix = q.type === "完形填空" ? `${currentIndex + 1}. ` : "";
-contentHtml += `<div class="main-question-text">${prefix}${q.question}</div>`;
+    contentHtml += `<div class="main-question-text">${prefix}${q.question}</div>`;
 
   } else {
-    // 普通题目 (包括翻译题)
     if (q.passage) {
       if (q.passage !== currentPassage) {
         currentPassage = q.passage;
@@ -371,17 +437,16 @@ contentHtml += `<div class="main-question-text">${prefix}${q.question}</div>`;
       `;
     }
     
-    // 翻译题特殊处理
     if (q.type === "翻译") {
       const userAnswer = record ? record.inputText : "";
       contentHtml += `<div class="main-question-text">${q.question}</div>`;
-           contentHtml += `
+      contentHtml += `
         <textarea id="transInput" class="trans-input-box" placeholder="请输入答案" ${record ? 'disabled' : ''}>${userAnswer}</textarea>
         <div style="text-align: center; margin-top: 10px; margin-bottom: 10px; font-size: 13px; color: #94a3b8;">
           - 翻译题不提供系统判断正误，请自行判断 -
         </div>
         <div style="text-align: center;">
-           <button id="showTransBtn" class="primary" style="width: 100%;" onclick="showTranslation()">查看解析</button>
+           <button id="showTransBtn" class="primary" style="width: 100%;" onclick="showTranslation()">解答 / 查看解析</button>
         </div>
         <div id="transResultBox" class="trans-result-box ${record ? '' : 'hidden'}">
            <div class="trans-tab-nav">
@@ -393,7 +458,7 @@ contentHtml += `<div class="main-question-text">${prefix}${q.question}</div>`;
            <div id="transContentRef" class="trans-tab-content">${q.answer || "暂无"}</div>
            <div id="transContentVocab" class="trans-tab-content hidden">${q.vocab || "暂无"}</div>
            <div id="transContentSentence" class="trans-tab-content hidden">${q.sentence || "暂无"}</div>
-           <div id="transContentGrammar" class="trans-tab-content hidden">${q.grammar || "暂无"}</div>
+           <div id="transContentGrammar" class="trans-tab-content hidden">${q.grammarDetail || "暂无"}</div>
         </div>
       `;
     } else {
@@ -406,7 +471,6 @@ contentHtml += `<div class="main-question-text">${prefix}${q.question}</div>`;
     ${contentHtml}
   `;
 
-  // 渲染选项区域
   els.optionsBox.innerHTML = "";
   if (q.type !== "翻译") {
     q.options.forEach((opt, idx) => {
@@ -446,7 +510,6 @@ contentHtml += `<div class="main-question-text">${prefix}${q.question}</div>`;
   els.nextBtn.textContent = currentIndex === quizQuestions.length - 1 ? "完成本轮" : "下一题";
 }
 
-// 翻译题特殊：显示解答
 window.showTranslation = function() {
   const inputEl = document.getElementById("transInput");
   const inputVal = inputEl ? inputEl.value : "";
@@ -461,7 +524,6 @@ window.showTranslation = function() {
   if(resultBox) resultBox.classList.remove("hidden");
 }
 
-// 翻译题特殊：切换Tab
 window.switchTransTab = function(tabName, btn) {
   document.querySelectorAll(".trans-tab").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
@@ -471,7 +533,7 @@ window.switchTransTab = function(tabName, btn) {
 }
 
 function chooseOption(idx) {
-  if (answersRecord[currentIndex]) return; 
+  if (answersRecord[currentIndex] && answersRecord[currentIndex].selected !== undefined) return; 
 
   const q = quizQuestions[currentIndex];
   const correctIndex = Number(q.answer);
@@ -490,6 +552,12 @@ function chooseOption(idx) {
   if (isCorrect) {
     stats.correct++;
     if (currentMode === "wrong") { wrongIds.delete(String(q.id)); saveWrongIds(); }
+    
+    // 全真模拟加分
+    if (currentMode === "mock" && q.score) {
+      currentMockScore += q.score;
+      updateMockScoreUI();
+    }
   } else {
     wrongIds.add(String(q.id)); saveWrongIds();
   }
@@ -584,7 +652,7 @@ function renderCard() {
     const record = answersRecord[i];
     if (record) {
       if (q.type === "翻译") {
-        btn.classList.add("card-answered"); // 翻译题专用颜色
+        btn.classList.add("card-answered");
       } else {
         btn.classList.add(record.isCorrect ? "card-correct" : "card-wrong");
       }
@@ -603,6 +671,7 @@ function renderCard() {
 
 els.tabHome.onclick = () => switchTab('home');
 els.tabProfile.onclick = () => switchTab('profile');
+els.startMockBtn.onclick = () => startMockExam();
 els.startFullBtn.onclick = () => switchTab('directory');
 els.startDailyBtn.onclick = () => startQuiz('daily');
 els.backFromDirBtn.onclick = () => switchTab('home');
@@ -638,7 +707,11 @@ els.openCardBtn.onclick = () => {
 els.closeCardBtn.onclick = () => els.cardModal.classList.add("hidden");
 els.submitQuizBtn.onclick = () => {
   const answeredCount = Object.keys(answersRecord).length;
-  alert(`交卷成功！\n本轮共 ${quizQuestions.length} 题\n你作答了 ${answeredCount} 题`);
+  if (currentMode === "mock") {
+    alert(`交卷成功！\n本轮共 ${quizQuestions.length} 题\n你作答了 ${answeredCount} 题\n\n📝 本次客观题得分：${currentMockScore} 分\n(翻译题需自行判分)`);
+  } else {
+    alert(`交卷成功！\n本轮共 ${quizQuestions.length} 题\n你作答了 ${answeredCount} 题`);
+  }
   els.cardModal.classList.add("hidden");
   exitQuiz();
 };

@@ -18,14 +18,18 @@
 
       <div class="card">
         <h3 class="card-title">真题练习</h3>
-        <div class="grid-actions">
+        <div class="grid-actions" style="grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <button id="startMockBtn" class="action-btn" style="background:#fce7f3; border-color:#fbcfe8;">
+            <span class="icon">📄</span>
+            <span class="text" style="font-size:14px;">全真模拟</span>
+          </button>
           <button id="startFullBtn" class="action-btn primary-light">
             <span class="icon">📚</span>
-            <span class="text">整套练习</span>
+            <span class="text" style="font-size:14px;">分类目录</span>
           </button>
           <button id="startDailyBtn" class="action-btn warning-light">
             <span class="icon">🔥</span>
-            <span class="text">每日拆题</span>
+            <span class="text" style="font-size:14px;">每日拆题</span>
           </button>
         </div>
       </div>
@@ -79,15 +83,17 @@
         <button class="type-tab" data-type="翻译">翻译</button>
       </div>
 
-      <div id="directoryList" style="margin-top: 16px;">
-      </div>
+      <div id="directoryList" style="margin-top: 16px;"></div>
     </section>
 
     <!-- ================= 刷题视图 ================= -->
     <section id="quizView" class="view hidden">
       <div class="quiz-head">
         <button id="backHomeBtn" class="ghost small" type="button">✕ 退出</button>
-        <span id="progressText" class="progress"></span>
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <span id="progressText" class="progress"></span>
+          <span id="mockScoreText" class="text-red" style="font-size:13px; font-weight:bold; display:none;">当前得分：0 分</span>
+        </div>
         <div style="display: flex; gap: 8px;">
           <button id="nextPassageBtn" class="ghost small hidden" type="button" style="color: var(--primary); border-color: var(--primary);">下一篇 ⏭</button>
           <button id="openCardBtn" class="secondary small" type="button">答题卡</button>
