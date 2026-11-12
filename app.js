@@ -324,10 +324,12 @@ function renderQuestion() {
 
   const isPassageGroup = q.title && (q.type === "完形填空" || q.type === "阅读理解");
 
+  // --- 动态计算题号 ---
+  let displayIndex = currentIndex + 1;
   if (isPassageGroup) {
     const samePassageQs = quizQuestions.filter(item => item.title === q.title);
-    const indexInPassage = samePassageQs.findIndex(item => item.id === q.id) + 1;
-    els.progressText.textContent = `第 ${indexInPassage} / ${samePassageQs.length} 题`;
+    displayIndex = samePassageQs.findIndex(item => item.id === q.id) + 1;
+    els.progressText.textContent = `第 ${displayIndex} / ${samePassageQs.length} 题`;
     
     let nextPassageIndex = -1;
     for (let i = currentIndex + 1; i < quizQuestions.length; i++) {
@@ -349,6 +351,9 @@ function renderQuestion() {
     els.nextPassageBtn.classList.add("hidden");
   }
 
+  // --- 清理原始题号 ---
+  let cleanQuestion = q.question.replace(/^\d+\.\s*/, "");
+
   let tagHtml = "";
   if (q.type === "翻译") {
     if (q.year) tagHtml += `${q.year}年`;
@@ -358,7 +363,6 @@ function renderQuestion() {
     if (q.year) tagHtml += `${q.year}年 `;
   }
   
-  // 如果是全真模拟，在标签里加上分值
   if (currentMode === "mock" && q.score) {
     tagHtml += `<span style="color:#ef4444; font-weight:bold; margin-left:8px;">(${q.score}分)</span>`;
   }
@@ -420,8 +424,7 @@ function renderQuestion() {
       }
     }
 
-    let prefix = q.type === "完形填空" ? `${currentIndex + 1}. ` : "";
-    contentHtml += `<div class="main-question-text">${prefix}${q.question}</div>`;
+    contentHtml += `<div class="main-question-text">${displayIndex}. ${cleanQuestion}</div>`;
 
   } else {
     if (q.passage) {
@@ -439,7 +442,7 @@ function renderQuestion() {
     
     if (q.type === "翻译") {
       const userAnswer = record ? record.inputText : "";
-      contentHtml += `<div class="main-question-text">${q.question}</div>`;
+      contentHtml += `<div class="main-question-text">${currentIndex + 1}. ${cleanQuestion}</div>`;
       contentHtml += `
         <textarea id="transInput" class="trans-input-box" placeholder="请输入答案" ${record ? 'disabled' : ''}>${userAnswer}</textarea>
         <div style="text-align: center; margin-top: 10px; margin-bottom: 10px; font-size: 13px; color: #94a3b8;">
@@ -462,7 +465,7 @@ function renderQuestion() {
         </div>
       `;
     } else {
-      contentHtml += `<div class="main-question-text">${q.question}</div>`;
+      contentHtml += `<div class="main-question-text">${currentIndex + 1}. ${cleanQuestion}</div>`;
     }
   }
 
@@ -553,7 +556,6 @@ function chooseOption(idx) {
     stats.correct++;
     if (currentMode === "wrong") { wrongIds.delete(String(q.id)); saveWrongIds(); }
     
-    // 全真模拟加分
     if (currentMode === "mock" && q.score) {
       currentMockScore += q.score;
       updateMockScoreUI();
@@ -593,6 +595,78 @@ function chooseOption(idx) {
 function renderCard() {
   els.cardGrid.innerHTML = "";
   
+  // --- 全真模拟：按题型垂直分组，内部横向平铺 ---
+  if (currentMode === "mock") {
+    // 强制将弹窗外层改为垂直排列，并重置普通模式的样式
+    els.cardGrid.style.display = "flex";
+    els.cardGrid.style.flexDirection = "column";
+    els.cardGrid.style.gap = "24px";
+    els.cardGrid.style.gridTemplateColumns = "";
+
+    let currentType = "";
+    let sectionWrapper = null;
+    let gridDiv = null;
+
+    for (let i = 0; i < quizQuestions.length; i++) {
+      const q = quizQuestions[i];
+      
+      if (q.type !== currentType) {
+        currentType = q.type;
+        
+        sectionWrapper = document.createElement("div");
+        sectionWrapper.style.width = "100%";
+        
+        const titleDiv = document.createElement("div");
+        titleDiv.textContent = `【${q.type}】`;
+        titleDiv.style.fontSize = "14px";
+        titleDiv.style.color = "#64748b";
+        titleDiv.style.marginBottom = "12px";
+        titleDiv.style.borderLeft = "3px solid #2563eb";
+        titleDiv.style.paddingLeft = "8px";
+        titleDiv.style.fontWeight = "600";
+        
+        gridDiv = document.createElement("div");
+        gridDiv.style.display = "flex";
+        gridDiv.style.flexWrap = "wrap";
+        gridDiv.style.gap = "12px";
+        
+        sectionWrapper.appendChild(titleDiv);
+        sectionWrapper.appendChild(gridDiv);
+        els.cardGrid.appendChild(sectionWrapper);
+      }
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "card-item";
+      btn.textContent = i + 1;
+      
+      const record = answersRecord[i];
+      if (record) {
+        if (q.type === "翻译") {
+          btn.classList.add("card-answered");
+        } else {
+          btn.classList.add(record.isCorrect ? "card-correct" : "card-wrong");
+        }
+      } else if (i === currentIndex) {
+        btn.classList.add("card-current");
+      }
+      
+      btn.onclick = () => {
+        currentIndex = i;
+        els.cardModal.classList.add("hidden");
+        renderQuestion();
+      };
+      gridDiv.appendChild(btn);
+    }
+    return;
+  }
+
+  // --- 专项练习/按篇章分类展示（恢复原生的 grid 布局） ---
+  els.cardGrid.style.display = "grid";
+  els.cardGrid.style.gridTemplateColumns = "repeat(auto-fill, minmax(40px, 1fr))";
+  els.cardGrid.style.flexDirection = "";
+  els.cardGrid.style.gap = "12px";
+
   let currentTitle = "";
   let passageWrapper = null;
 
